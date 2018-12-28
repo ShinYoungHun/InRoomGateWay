@@ -1,0 +1,13 @@
+{
+  "endPointList":[
+    {"ip":"192.168.0.3","id":"admin","password":""}
+
+  ],
+  "db":{
+    "ip":"182.237.86.248",
+    "id":"cmsuser",
+    "pwd":"cmsuser",
+    "port":"3306",
+    "name":"kotech_cisco_cms"
+  }
+}

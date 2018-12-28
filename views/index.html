@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Title of the document</title>
+<script src="/javascripts/jquery/dist/jquery.js"></script>
+</head>
+
+<body>
+Content of the document......
+<span id="restart">restart</span>
+</body>
+<script>
+$(document).ready(function(){
+  console.log("ttt");
+
+  $("#restart").on("click",function(){
+    $.ajax({
+      url: "/restart",
+      type: "POST",
+      data:{},
+      success : function(data){
+        console.log("TTTTT");
+      }
+    })
+  });
+
+});
+</script>
+</html>
