@@ -70,7 +70,7 @@ router.get('/', function(req, res, next) {
 router.post('/restart',function(req,res,next){
   console.log("TTTTTTTTT");
   res.json(200);
-  shelljs.exec('node www');
+  shelljs.exec('forever restartall');
 
 });
 
