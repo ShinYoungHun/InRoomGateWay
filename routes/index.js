@@ -7,21 +7,22 @@ var fs = require('fs');                             //파일시스템
 var path = require('path');                         //path 관련?
 var Client = require('ssh2').Client;
 
-var greetFunction = require(__basedir+'/test/some.js')
-var inRoom = require(__basedir+'/custom_module/InRoomModule.js')
+var greetFunction = require(__basedir+'/test/some.js');
+var inRoom = require(__basedir+'/custom_module/InRoomModule.js');
 var contents = fs.readFileSync(__basedir+"/source/endPointList.json");
 var jsonContent = JSON.parse(contents);
-var epList = jsonContent["endPointList"];
+//var epList = jsonContent["endPointList"];
+var epList = []
 var async = require('async');
-var shelljs = require('shelljs')
+var shelljs = require('shelljs');
 
 function initfn(){
 
   var c = new DbClient({
-    host: '182.237.86.248',
-    user: 'cmsuser',
-    password: 'cmsuser',
-    db:'kotech_cisco_cms'
+    host: jsonContent['db']['ip'],
+    user: jsonContent['db']['id'],
+    password: jsonContent['db']['pwd'],
+    db:jsonContent['db']['name']
   });
 
   c.query("SELECT ip, device_id, IFNULL(device_pwd,'') AS device_pwd FROM cms_endpoint WHERE device_module = 'Y' AND delete_yn = 'N'", function(err, rows,callback) {

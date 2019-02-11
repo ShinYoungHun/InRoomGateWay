@@ -9,11 +9,14 @@ const unicodeToJsEscape = require('unicode-escape');
 const builder = require('xmlbuilder');
 const Entities = require('html-entities').AllHtmlEntities;
 const entities = new Entities();
+const fs = require('fs');
+const defaultSetting = fs.readFileSync(__basedir+"/source/setting.json");
+const defaultSettingJson = JSON.parse(defaultSetting);
 
 function inRoomApi(endpoint){
 
-    this.tempTMIp = "192.168.0.9"
-    this.tempTMPort = "8000"
+    this.tempTMIp = defaultSettingJson['setting']['tmip']
+    this.tempTMPort = defaultSettingJson['setting']['tmport']
     this.endpoint = endpoint;
     this.xapi;
     this.connectedStatus = 'false';
@@ -1200,8 +1203,8 @@ inRoomApi.prototype.initWidget = function(wevent){
     //step1.TM호출
     let param = {};
     param['host'] = self.endpoint.ip;
-    //param['eplist'] = self.conEPList;
-    param['eplist'] = ["EPI00000009"];
+    param['eplist'] = self.conEPList;
+    //param['eplist'] = ["EPI00000009"];
 
     if(param.eplist.length>0){
 
@@ -1241,7 +1244,7 @@ inRoomApi.prototype.initWidget = function(wevent){
             let call_name = retBody.data.call_name;
             let call_id = retBody.data.callId;
 
-            self.xapi.command('Dial',{'Number':call_id}).catch ((err) => {
+            self.xapi.command('Dial',{'Number':call_id+defaultSettingJson['setting']['callsuffix']}).catch ((err) => {
                 console.error("call_btn_event Error 3: ",err);
             });
 
@@ -1385,7 +1388,7 @@ inRoomApi.prototype.initWidget = function(wevent){
             let call_name = retBody.data.call_name;
             let call_id = retBody.data.callId;
 
-            self.xapi.command('Dial',{'Number':call_id}).catch ((err) => {
+            self.xapi.command('Dial',{'Number':call_id+defaultSettingJson['setting']['callsuffix']}).catch ((err) => {
               console.error("call_btn_event_normal Error 3: ",err);
             });
 
@@ -1457,7 +1460,7 @@ inRoomApi.prototype.initWidget = function(wevent){
 
         let retCallId = retBody.call_id;
 
-        self.xapi.command('Dial',{'Number':retCallId}).catch ((err) => {
+        self.xapi.command('Dial',{'Number':retCallId+defaultSettingJson['setting']['callsuffix']}).catch ((err) => {
             console.error("reconnect_meeting Error : ",err);
             self.xapi.command('UserInterface Message Alert Display',{ 'Text':"알수 없는 에러가 발생하였습니다." , 'Duration':5});
         });;
@@ -1482,12 +1485,15 @@ inRoomApi.prototype.initPrompt = function(ePrompt){
   }
 
   function inCallFunction(feedbackId){
+
+    let epip = self.endpoint.ip;
+
     let seqId = feedbackId.substring(7);
     let param = {};
     param['seq'] = seqId;
     jsonstrparam = JSON.stringify(param);
 
-    let res = request('POST', 'http://'+self.tempTMIp+':'+self.tempTMPort+'/api/v1/searchContactMeeting', {
+    let res = request('POST', 'http://'+self.tempTMIp+':'+self.tempTMPort+'/api/v1/searchContactMeeting'+'?epip='+epip, {
       'content-type' : 'application/json',
       'charset' : 'UTF-8',
       'body' : jsonstrparam
@@ -1498,7 +1504,7 @@ inRoomApi.prototype.initPrompt = function(ePrompt){
 
     let retCallId = retBody.call_id;
 
-    self.xapi.command('Dial',{'Number':retCallId}).catch ((err) => {
+    self.xapi.command('Dial',{'Number':retCallId+defaultSettingJson['setting']['callsuffix']}).catch ((err) => {
         console.error("inCallFunction Error : ",err);
     });
 
