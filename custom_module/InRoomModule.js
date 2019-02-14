@@ -28,6 +28,7 @@ function inRoomApi(endpoint){
     this.MLList = [];
     this.normalSourceList = [];
     this.normalEPList = [];           //normal 사용 가능 장비 목록
+
     this.init();
 
 }
@@ -103,10 +104,6 @@ inRoomApi.prototype.webexMeeting = function(){
 
     this.initPanel("CommonPanel");
 
-    // self.xapi.status.get('Call').then((value) => {
-    //   console.log(value);
-    // });
-
     self.xapi.feedback.on('Status Call', data => {
 
        if(data.length!=undefined){
@@ -126,7 +123,6 @@ inRoomApi.prototype.webexMeeting = function(){
     });
 
     self.xapi.event.on('UserInterface Message Prompt Response',(ePrompt) => {
-      //console.log(ePrompt);
       this.initPrompt(ePrompt);
     });
 
@@ -141,44 +137,17 @@ inRoomApi.prototype.webexMeeting = function(){
     });
 }
 
-
-
-
 //InformationPanel 오픈시 데이터 초기화
 inRoomApi.prototype.initPanel = function(panelId){
 
   const self = this;
 
   switch(panelId){
-    case "InformationPanel" : initInformationPanel(); break;
-    case "TimeMeetingPanel" : initTimeMeetingPanel(); break;
-    case "FastMeetingPanel" : initFastMeetingPanel(); break;
-    case "ContactPanel"     : initContactPanel();     break;
-    case "MeetingListPanel" : initMeetingListPanel(); break;
-    case "NormalPanel"      : initNormalPanel();      break;
+    case "ContactPanel"     : initContactPanel();     break;  //임원주소록
+    case "MeetingListPanel" : initMeetingListPanel(); break;  //회의목록
+    case "NormalPanel"      : initNormalPanel();      break;  //코덱주소록
     case "CommonPanel"      : initCommonPanel();      break;
     default : break;
-  }
-
-  function initInformationPanel(){//InformationPanel 초기화
-    let xmlcont = createInformationPanel();
-    self.xapi.command('UserInterface Extensions Set',{ ConfigId: 'default' },entities.encodeNonASCII(xmlcont)).catch ((err) => {
-        console.error("initInformationPanel Error : ",err);
-    });
-  }
-
-  function initTimeMeetingPanel(){//TimeMeetingPanel 초기화
-    let xmlcont = createTimeMeetingPanel();
-    self.xapi.command('UserInterface Extensions Set',{ ConfigId: 'default' },entities.encodeNonASCII(xmlcont)).catch ((err) => {
-        console.error("initTimeMeetingPanel Error : ",err);
-    });
-  }
-
-  function initFastMeetingPanel(){
-    let xmlcont = createFastMeetingPanel();
-    self.xapi.command('UserInterface Extensions Set',{ ConfigId: 'default' },entities.encodeNonASCII(xmlcont)).catch ((err) => {
-        console.error("initFastMeetingPanel Error : ",err);
-    });
   }
 
   function initContactPanel(){
@@ -216,29 +185,33 @@ inRoomApi.prototype.initPanel = function(panelId){
     xRoot.ele('Version', '1.5');
 
     // 4.주소록
-    let xPanel_sub4 = xRoot.ele('Panel');
-    xPanel_sub4.ele('PanelId','ContactPanel');
-    xPanel_sub4.ele('Type','Statusbar');
-    xPanel_sub4.ele('Icon','Handset');
-    xPanel_sub4.ele('Order','4');
-    xPanel_sub4.ele('Color','#ffb400');
-    xPanel_sub4.ele('Name',"임원 주소록");
+    if("Y"==self.endpoint.device_officer){
+      let xPanel_sub4 = xRoot.ele('Panel');
+      xPanel_sub4.ele('PanelId','ContactPanel');
+      xPanel_sub4.ele('Type','Statusbar');
+      xPanel_sub4.ele('Icon','Handset');
+      xPanel_sub4.ele('Order','4');
+      xPanel_sub4.ele('Color','#ffb400');
+      xPanel_sub4.ele('Name',"임원 주소록");
 
-    let xPage_sub4 = xPanel_sub4.ele('Page');
-    xPage_sub4.ele('Name','임원 주소록');
-    xPage_sub4.ele('Options');
+      let xPage_sub4 = xPanel_sub4.ele('Page');
+      xPage_sub4.ele('Name','임원 주소록');
+      xPage_sub4.ele('Options');
+    }
 
-    let xPanel_sub5 = xRoot.ele('Panel');
-    xPanel_sub5.ele('PanelId','NormalPanel');
-    xPanel_sub5.ele('Type','Statusbar');
-    xPanel_sub5.ele('Icon','Handset');
-    xPanel_sub5.ele('Order','5');
-    xPanel_sub5.ele('Color','#ff503c');
-    xPanel_sub5.ele('Name',"회의실 주소록");
+    if("Y"==self.endpoint.device_open){
+      let xPanel_sub5 = xRoot.ele('Panel');
+      xPanel_sub5.ele('PanelId','NormalPanel');
+      xPanel_sub5.ele('Type','Statusbar');
+      xPanel_sub5.ele('Icon','Handset');
+      xPanel_sub5.ele('Order','5');
+      xPanel_sub5.ele('Color','#ff503c');
+      xPanel_sub5.ele('Name',"회의실 주소록");
 
-    let xPage_sub5 = xPanel_sub5.ele('Page');
-    xPage_sub5.ele('Name','회의실 주소록');
-    xPage_sub5.ele('Options');
+      let xPage_sub5 = xPanel_sub5.ele('Page');
+      xPage_sub5.ele('Name','회의실 주소록');
+      xPage_sub5.ele('Options');
+    }
 
     let xPanel_sub6 = xRoot.ele('Panel');
     xPanel_sub6.ele('PanelId','MeetingListPanel');
@@ -256,413 +229,7 @@ inRoomApi.prototype.initPanel = function(panelId){
 
   }
 
-  function createInformationPanel(){  // 회의 예약 현황
-    let epip = self.endpoint.ip;
-
-    let res = request('GET', 'http://'+self.tempTMIp+':'+self.tempTMPort+'/api/v1/checkReservation'+'?epip='+epip, {
-      'content-type' : 'application/json',
-      'charset' : 'UTF-8'
-    });
-
-    let strBody = res.getBody('utf8');
-    let retBody = JSON.parse(strBody);
-    let retResult = retBody.result;
-    let retItem = retBody.item;
-
-    let curDate = new Date();
-    let curYear = curDate.getFullYear();
-    let curMonth = curDate.getMonth()+1;
-    let curDay = curDate.getDate();
-
-    let xRoot = builder.create('Extensions');
-    xRoot.ele('Version', '1.5');
-
-    let xPanel = xRoot.ele('Panel');
-    xPanel.ele('PanelId','InformationPanel');
-    xPanel.ele('Type','Statusbar');
-    xPanel.ele('Icon','Info');
-    xPanel.ele('Order','1');
-    xPanel.ele('Color','#D541D8');
-    xPanel.ele('Name',"예약확인");
-
-    let xPanel_sub1 = xRoot.ele('Panel');
-    xPanel_sub1.ele('PanelId','TimeMeetingPanel');
-    xPanel_sub1.ele('Type','Statusbar');
-    xPanel_sub1.ele('Icon','Concierge');
-    xPanel_sub1.ele('Order','2');
-    xPanel_sub1.ele('Color','#FF7033');
-    xPanel_sub1.ele('Name',"회의예약");
-
-    let xPage_sub1 = xPanel_sub1.ele('Page');
-    xPage_sub1.ele('Name','회의예약');
-
-    let xPanel_sub2 = xRoot.ele('Panel');
-    xPanel_sub2.ele('PanelId','FastMeetingPanel');
-    xPanel_sub2.ele('Type','Statusbar');
-    xPanel_sub2.ele('Icon','Lightbulb');
-    xPanel_sub2.ele('Order','3');
-    xPanel_sub2.ele('Color','#FF3D67');
-    xPanel_sub2.ele('Name',"즉시예약");
-
-    let xPage_sub2 = xPanel_sub2.ele('Page');
-    xPage_sub2.ele('Name','즉시예약');
-
-    let xPanel_sub3 = xRoot.ele('Panel');
-    xPanel_sub3.ele('PanelId','ContactPanel');
-    xPanel_sub3.ele('Type','Statusbar');
-    xPanel_sub3.ele('Icon','Lightbulb');
-    xPanel_sub3.ele('Order','4');
-    xPanel_sub3.ele('Color','#07C1E4');
-    xPanel_sub3.ele('Name',"주소록");
-
-    let xPage_sub3 = xPanel_sub3.ele('Page');
-    xPage_sub3.ele('Name','주소록');
-
-    let xPage = xPanel.ele('Page');
-    xPage.ele('Name',"예약확인");
-
-    let xRow = xPage.ele('Row');
-    xRow.ele('Name','Message');
-
-    let timeWidget = xRow.ele('Widget');
-    timeWidget.ele('WidgetId','TimeWidget');
-    timeWidget.ele('Name',curYear+"년 "+curMonth+"월 "+curDay+"일");
-    timeWidget.ele('Type','Text');
-    timeWidget.ele('Options','size=4;fontSize=normal;align=center');
-
-    let xRow2 = xPage.ele('Row');
-    xRow2.ele('Name','예약정보');
-
-    for(let i=0;i<retItem.length;i++){
-
-      let tempWidget = xRow2.ele('Widget');
-      let tempName = retItem[i].resv_name;
-      let tempStart = dateFormat(retItem[i].start_date,'mm/dd HH:MM');
-      let tempEnd =dateFormat(retItem[i].end_date,'mm/dd HH:MM');
-
-      tempWidget.ele('WidgetId','Reserve_Info_'+i);
-      tempWidget.ele('Name', tempName+" ("+tempStart+" ~ "+tempEnd+")");
-      tempWidget.ele('Type','Text');
-      tempWidget.ele('Options','size=4;fontSize=small;align=left');
-
-    }
-
-    return xRoot.end({pretty:true});
-
-  }
-
-  function createTimeMeetingPanel(){
-
-      let curDate = new Date();
-      self.tmStartDate = curDate;
-      self.tmEndDate = curDate;
-      let curDay = dateFormat(curDate,'yy년 mm월 dd일');
-      let curSTime = dateFormat(curDate,'HH:MM');
-      let curETime = dateFormat(curDate,'HH:MM');
-
-      let res = request('GET', 'http://'+self.tempTMIp+':'+self.tempTMPort+'/api/v1/getDeviceInfo', {
-      //let res = request('GET', 'http://127.0.0.1:8000/api/v1/getDeviceInfo', {
-        'content-type' : 'application/json',
-        'charset' : 'UTF-8'
-      });
-
-      let strBody = res.getBody('utf8');
-      let retBody = JSON.parse(strBody);
-      let retResult = retBody.result;
-      let retItem = retBody.item;
-
-      let xRoot = builder.create('Extensions');
-      xRoot.ele('Version', '1.5');
-
-      let xPanel_sub1 = xRoot.ele('Panel');
-      xPanel_sub1.ele('PanelId','InformationPanel');
-      xPanel_sub1.ele('Type','Statusbar');
-      xPanel_sub1.ele('Icon','Info');
-      xPanel_sub1.ele('Order','1');
-      xPanel_sub1.ele('Color','#D541D8');
-      xPanel_sub1.ele('Name',"예약확인");
-
-      let xPage_sub1 = xPanel_sub1.ele('Page');
-      xPage_sub1.ele('Name',"예약확인");
-
-      let xPanel_sub2 = xRoot.ele('Panel');
-      xPanel_sub2.ele('PanelId','FastMeetingPanel');
-      xPanel_sub2.ele('Type','Statusbar');
-      xPanel_sub2.ele('Icon','Lightbulb');
-      xPanel_sub2.ele('Order','3');
-      xPanel_sub2.ele('Color','#FF3D67');
-      xPanel_sub2.ele('Name',"즉시예약");
-
-      let xPage_sub2 = xPanel_sub2.ele('Page');
-      xPage_sub2.ele('Name','즉시예약');
-
-      let xPanel_sub3 = xRoot.ele('Panel');
-      xPanel_sub3.ele('PanelId','ContactPanel');
-      xPanel_sub3.ele('Type','Statusbar');
-      xPanel_sub3.ele('Icon','Lightbulb');
-      xPanel_sub3.ele('Order','4');
-      xPanel_sub3.ele('Color','#07C1E4');
-      xPanel_sub3.ele('Name',"주소록");
-
-      let xPage_sub3 = xPanel_sub3.ele('Page');
-      xPage_sub3.ele('Name','주소록');
-
-      let xPanel = xRoot.ele('Panel');
-      xPanel.ele('PanelId','TimeMeetingPanel');
-      xPanel.ele('Type','Statusbar');
-      xPanel.ele('Icon','Concierge');
-      xPanel.ele('Order','2');
-      xPanel.ele('Color','#FF7033');
-      xPanel.ele('Name',"회의예약");
-
-      let xPage_main = xPanel.ele('Page');
-      xPage_main.ele('Name','회의예약');
-
-      let xRow_main_1 = xPage_main.ele('Row');
-      xRow_main_1.ele('Name','Message');
-      let xRow_main_2 = xPage_main.ele('Row');
-      xRow_main_2.ele('Name','회의 시간');
-      let xRow_main_3 = xPage_main.ele('Row');
-      xRow_main_3.ele('Name','회의 날짜 [월/일]');
-      let xRow_main_4 = xPage_main.ele('Row');
-      xRow_main_4.ele('Name','회의 시작 시간 [시/분]');
-      let xRow_main_5 = xPage_main.ele('Row');
-      xRow_main_5.ele('Name','회의 종료 시간 [시/분]');
-      let xRow_main_6 = xPage_main.ele('Row');
-      xRow_main_6.ele('Name','빈 회의실 확인');
-
-      let xRow_widget_1 = xRow_main_1.ele('Widget');
-      xRow_widget_1.ele('WidgetId','SystemMessage');
-      xRow_widget_1.ele('Name','회의 시간을 설정해 주세요');
-      xRow_widget_1.ele('Type','Text');
-      xRow_widget_1.ele('Options','size=4;fontSize=small;align=center');
-
-      let xRow_widget_2 = xRow_main_2.ele('Widget');
-      xRow_widget_2.ele('WidgetId','TimeMessage');
-      xRow_widget_2.ele('Name',curDay+' '+curSTime+' ~ '+curETime);
-      xRow_widget_2.ele('Type','Text');
-      xRow_widget_2.ele('Options','size=4;fontSize=small;align=center');
-
-      let xRow_widget_3_1 = xRow_main_3.ele('Widget');
-      xRow_widget_3_1.ele('WidgetId','StartMonth_Spinner');
-      xRow_widget_3_1.ele('Type','Spinner');
-      xRow_widget_3_1.ele('Options','size=2');
-
-      let xRow_widget_3_2 = xRow_main_3.ele('Widget');
-      xRow_widget_3_2.ele('WidgetId','StartDay_Spinner');
-      xRow_widget_3_2.ele('Type','Spinner');
-      xRow_widget_3_2.ele('Options','size=2');
-
-      let xRow_widget_4_1 = xRow_main_4.ele('Widget');
-      xRow_widget_4_1.ele('WidgetId','StartHour_Spinner');
-      xRow_widget_4_1.ele('Type','Spinner');
-      xRow_widget_4_1.ele('Options','size=2');
-
-      let xRow_widget_4_2 = xRow_main_4.ele('Widget');
-      xRow_widget_4_2.ele('WidgetId','StartMinute_Spinner');
-      xRow_widget_4_2.ele('Type','Spinner');
-      xRow_widget_4_2.ele('Options','size=2;style=vertical');
-
-      let xRow_widget_5_1 = xRow_main_5.ele('Widget');
-      xRow_widget_5_1.ele('WidgetId','EndHour_Spinner');
-      xRow_widget_5_1.ele('Type','Spinner');
-      xRow_widget_5_1.ele('Options','size=2');
-
-      let xRow_widget_5_2 = xRow_main_5.ele('Widget');
-      xRow_widget_5_2.ele('WidgetId','EndMinute_Spinner');
-      xRow_widget_5_2.ele('Type','Spinner');
-      xRow_widget_5_2.ele('Options','size=2;style=vertical');
-
-      let xRow_widget_6 = xRow_main_6.ele('Widget');
-      xRow_widget_6.ele('WidgetId','CheckRoom');
-      xRow_widget_6.ele('Name','Button');
-      xRow_widget_6.ele('Type','Button');
-      xRow_widget_6.ele('Options','size=4');
-
-      //EP_GROUP 으로 페이지 생성
-      for(let i=0;i<retItem.length;i++){
-
-        let xPage_ep_group = xPanel.ele('Page');
-        xPage_ep_group.ele('Name',retItem[i].ep_group_name);
-
-        let xRow_detail = xPage_ep_group.ele('Row');
-        xRow_detail.ele('Name','Message');
-
-        let xRow_detail_widget = xRow_detail.ele('Widget');
-        xRow_detail_widget.ele('WidgetId','SystemMessage');
-        xRow_detail_widget.ele('Name','회의실을 선택해 주세요');
-        xRow_detail_widget.ele('Type','Text');
-        xRow_detail_widget.ele('Options','size=4;fontSize=small;align=center');
-
-        let xRow_ep_group = xPage_ep_group.ele('Row');
-        xRow_ep_group.ele('Name','장비');
-        let tempEp = retItem[i].endpoint;
-
-        //ep_id 로 버튼 생성
-        for(var j=0;j<tempEp.length;j++){
-
-          let ep_id = tempEp[j].ep_id;
-          let ep_name = tempEp[j].ep_name;
-          let xRow_ep = xRow_ep_group.ele('Widget');
-
-          xRow_ep.ele('WidgetId','TIME_'+ep_id);
-          xRow_ep.ele('Name',ep_name);
-          xRow_ep.ele('Type','Button');
-          xRow_ep.ele('Options','size=2');
-
-        }
-
-      }
-
-      let xPage_confirm = xPanel.ele('Page');
-      xPage_confirm.ele('Name','회의실 예약');
-      let xPage_confirm_row1 = xPage_confirm.ele('Row');
-      xPage_confirm_row1.ele('Name','Message');
-      let xPage_confirm_row2 = xPage_confirm.ele('Row');
-      xPage_confirm_row2.ele('Name','선택된 회의실');
-      let xPage_confirm_row3 = xPage_confirm.ele('Row');
-      xPage_confirm_row3.ele('Name','회의 예약');
-
-      let xPage_confirm_row1_Widget = xPage_confirm_row1.ele('Widget');
-      xPage_confirm_row1_Widget.ele('WidgetId','SystemMessage');
-      xPage_confirm_row1_Widget.ele('Name','선택된 회의실 정보를 확인 후 예약 버튼을 눌러 주세요');
-      xPage_confirm_row1_Widget.ele('Type','Text');
-      xPage_confirm_row1_Widget.ele('Options','size=4;fontSize=small;align=center');
-
-      let xPage_confirm_row2_Widget = xPage_confirm_row2.ele('Widget');
-      xPage_confirm_row2_Widget.ele('WidgetId','SelectedRoomMessage');
-      xPage_confirm_row2_Widget.ele('Name','선택된 회의실 리스트');
-      xPage_confirm_row2_Widget.ele('Type','Text');
-      xPage_confirm_row2_Widget.ele('Options','size=2');
-
-      let xPage_confirm_row2_Widget1 = xPage_confirm_row3.ele('Widget');
-      xPage_confirm_row2_Widget1.ele('WidgetId','ClearRoom');
-      xPage_confirm_row2_Widget1.ele('Name','초기화');
-      xPage_confirm_row2_Widget1.ele('Type','Button');
-      xPage_confirm_row2_Widget1.ele('Options','size=4;fontSize=small;align=center');
-
-      let xPage_confirm_row2_Widget2 = xPage_confirm_row3.ele('Widget');
-      xPage_confirm_row2_Widget2.ele('WidgetId','ReservationRoom');
-      xPage_confirm_row2_Widget2.ele('Name','예약');
-      xPage_confirm_row2_Widget2.ele('Type','Button');
-      xPage_confirm_row2_Widget2.ele('Options','size=2');
-
-      return xRoot.end({pretty:true});
-
-  }
-
-  function createFastMeetingPanel(){//FastMeetingPanel 초기화
-
-      let curDate = new Date();
-      curDate = dateFormat(curDate,'yy년 mm월 dd일 HH:MM');
-
-      let xRoot = builder.create('Extensions');
-      xRoot.ele('Version', '1.5');
-
-      let xPanel_sub1 = xRoot.ele('Panel');
-      xPanel_sub1.ele('PanelId','InformationPanel');
-      xPanel_sub1.ele('Type','Statusbar');
-      xPanel_sub1.ele('Icon','Info');
-      xPanel_sub1.ele('Order','1');
-      xPanel_sub1.ele('Color','#D541D8');
-      xPanel_sub1.ele('Name',"예약확인");
-
-      let xPage_sub1 = xPanel_sub1.ele('Page');
-      xPage_sub1.ele('Name',"예약확인");
-
-      let xPanel_sub2 = xRoot.ele('Panel');
-      xPanel_sub2.ele('PanelId','TimeMeetingPanel');
-      xPanel_sub2.ele('Type','Statusbar');
-      xPanel_sub2.ele('Icon','Concierge');
-      xPanel_sub2.ele('Order','2');
-      xPanel_sub2.ele('Color','#FF7033');
-      xPanel_sub2.ele('Name',"회의예약");
-
-      let xPage_sub2 = xPanel_sub2.ele('Page');
-      xPage_sub2.ele('Name',"회의예약");
-
-      let xPanel_sub3 = xRoot.ele('Panel');
-      xPanel_sub3.ele('PanelId','ContactPanel');
-      xPanel_sub3.ele('Type','Statusbar');
-      xPanel_sub3.ele('Icon','Lightbulb');
-      xPanel_sub3.ele('Order','4');
-      xPanel_sub3.ele('Color','#07C1E4');
-      xPanel_sub3.ele('Name',"주소록");
-
-      let xPage_sub3 = xPanel_sub3.ele('Page');
-      xPage_sub3.ele('Name','주소록');
-
-      let xPanel = xRoot.ele('Panel');
-      xPanel.ele('PanelId','FastMeetingPanel');
-      xPanel.ele('Type','Statusbar');
-      xPanel.ele('Icon','Lightbulb');
-      xPanel.ele('Order','3');
-      xPanel.ele('Color','#FF3D67');
-      xPanel.ele('Name',"즉시예약");
-
-      let xPage_main = xPanel.ele('Page');
-      xPage_main.ele('Name','즉시예약');
-      xPage_main.ele('PageId','FRMain');
-      xPage_main.ele('Options');
-
-      let xPage_Row1 = xPage_main.ele('Row');
-      xPage_Row1.ele('Name','Message');
-
-      let xPage_Row2 = xPage_main.ele('Row');
-      xPage_Row2.ele('Name','회의 시간');
-
-      let xPage_Row3 = xPage_main.ele('Row');
-      xPage_Row3.ele('Name','시간 설정');
-
-      let xPage_Row4 = xPage_main.ele('Row');
-      xPage_Row4.ele('Name','빈 회의실 확인');
-
-      let xPage_Row1_Widget = xPage_Row1.ele('Widget');
-      xPage_Row1_Widget.ele('WidgetId','SystemMessage');
-      xPage_Row1_Widget.ele('Name','회의 시간을 설정해 주세요');
-      xPage_Row1_Widget.ele('Type','Text');
-      xPage_Row1_Widget.ele('Options','size=4;fontSize=small;align=center');
-
-      let xPage_Row2_Widget = xPage_Row2.ele('Widget');
-      xPage_Row2_Widget.ele('WidgetId','TimeMessage');
-      xPage_Row2_Widget.ele('Name',curDate);
-      xPage_Row2_Widget.ele('Type','Text');
-      xPage_Row2_Widget.ele('Options','size=4;fontSize=small;align=center');
-
-      let xPage_Row3_Widget1 = xPage_Row3.ele('Widget');
-      xPage_Row3_Widget1.ele('WidgetId','Time_One');
-      xPage_Row3_Widget1.ele('Name','1시간');
-      xPage_Row3_Widget1.ele('Type','Button');
-      xPage_Row3_Widget1.ele('Options','size=2');
-
-      let xPage_Row3_Widget2 = xPage_Row3.ele('Widget');
-      xPage_Row3_Widget2.ele('WidgetId','Time_Two');
-      xPage_Row3_Widget2.ele('Name','2시간');
-      xPage_Row3_Widget2.ele('Type','Button');
-      xPage_Row3_Widget2.ele('Options','size=2');
-
-      let xPage_Row3_Widget3 = xPage_Row3.ele('Widget');
-      xPage_Row3_Widget3.ele('WidgetId','Time_Three');
-      xPage_Row3_Widget3.ele('Name','3시간');
-      xPage_Row3_Widget3.ele('Type','Button');
-      xPage_Row3_Widget3.ele('Options','size=2');
-
-      let xPage_Row3_Widget4 = xPage_Row3.ele('Widget');
-      xPage_Row3_Widget4.ele('WidgetId','Time_MAX');
-      xPage_Row3_Widget4.ele('Name','최대');
-      xPage_Row3_Widget4.ele('Type','Button');
-      xPage_Row3_Widget4.ele('Options','size=2');
-
-      let xPage_Row4_Widget = xPage_Row4.ele('Widget');
-      xPage_Row4_Widget.ele('WidgetId','CheckRoom_2');
-      xPage_Row4_Widget.ele('Name','빈 회의실 확인');
-      xPage_Row4_Widget.ele('Type','Button');
-      xPage_Row4_Widget.ele('Options','size=2');
-
-      return xRoot.end({pretty:true});
-  }
-
-  function createContactPanel(){                        // 주소록 미팅 패널 생성
+  function createContactPanel(){                        // 임원 미팅 패널 생성
     let epip = self.endpoint.ip;
     self.conSourceList = [];
     self.conEPList = [];
@@ -692,79 +259,83 @@ inRoomApi.prototype.initPanel = function(panelId){
     xPage_sub6.ele('Name','회의 목록');
     xPage_sub6.ele('Options');
 
-    let xPanel_sub5 = xRoot.ele('Panel');
-    xPanel_sub5.ele('PanelId','NormalPanel');
-    xPanel_sub5.ele('Type','Statusbar');
-    xPanel_sub5.ele('Icon','Handset');
-    xPanel_sub5.ele('Order','5');
-    xPanel_sub5.ele('Color','#ff503c');
-    xPanel_sub5.ele('Name',"회의실 주소록");
+    if("Y"==self.endpoint.device_open){
+      let xPanel_sub5 = xRoot.ele('Panel');
+      xPanel_sub5.ele('PanelId','NormalPanel');
+      xPanel_sub5.ele('Type','Statusbar');
+      xPanel_sub5.ele('Icon','Handset');
+      xPanel_sub5.ele('Order','5');
+      xPanel_sub5.ele('Color','#ff503c');
+      xPanel_sub5.ele('Name',"회의실 주소록");
 
-    let xPage_sub5 = xPanel_sub5.ele('Page');
-    xPage_sub5.ele('Name','회의실 주소록');
-    xPage_sub5.ele('Options');
+      let xPage_sub5 = xPanel_sub5.ele('Page');
+      xPage_sub5.ele('Name','회의실 주소록');
+      xPage_sub5.ele('Options');
+    }
 
-    let xPanel = xRoot.ele('Panel');
-    xPanel.ele('PanelId','ContactPanel');
-    xPanel.ele('Type','Statusbar');
-    xPanel.ele('Icon','Handset');
-    xPanel.ele('Order','4');
-    xPanel.ele('Color','#ffb400');
-    xPanel.ele('Name',"임원 주소록");
+    if("Y"==self.endpoint.device_officer){
+      let xPanel = xRoot.ele('Panel');
+      xPanel.ele('PanelId','ContactPanel');
+      xPanel.ele('Type','Statusbar');
+      xPanel.ele('Icon','Handset');
+      xPanel.ele('Order','4');
+      xPanel.ele('Color','#ffb400');
+      xPanel.ele('Name',"임원 주소록");
 
-    for(let i=0;i<retItem.length;i++){
+      for(let i=0;i<retItem.length;i++){
 
-      let xPage_ep_group = xPanel.ele('Page');
-      xPage_ep_group.ele('Name',retItem[i].ep_group_name);
+        let xPage_ep_group = xPanel.ele('Page');
+        xPage_ep_group.ele('Name',retItem[i].ep_group_name);
 
-      let xRow_detail = xPage_ep_group.ele('Row');
-      xRow_detail.ele('Name','연결목록');
+        let xRow_detail = xPage_ep_group.ele('Row');
+        xRow_detail.ele('Name','연결목록');
 
-      let xRow_detail_widget = xRow_detail.ele('Widget');
-      xRow_detail_widget.ele('WidgetId','SystemMessage');
-      xRow_detail_widget.ele('Name','통화 연결 상대를 선택해주세요');
-      xRow_detail_widget.ele('Type','Text');
-      xRow_detail_widget.ele('Options','size=4;fontSize=small;align=center');
+        let xRow_detail_widget = xRow_detail.ele('Widget');
+        xRow_detail_widget.ele('WidgetId','SystemMessage');
+        xRow_detail_widget.ele('Name','통화 연결 상대를 선택해주세요');
+        xRow_detail_widget.ele('Type','Text');
+        xRow_detail_widget.ele('Options','size=4;fontSize=small;align=center');
 
-      let xRow_call_row = xPage_ep_group.ele('Row');
-      xRow_call_row.ele('Name','');
+        let xRow_call_row = xPage_ep_group.ele('Row');
+        xRow_call_row.ele('Name','');
 
-      let xRow_call_btn = xRow_call_row.ele('Widget');
-      xRow_call_btn.ele('WidgetId','CallBtn');
-      xRow_call_btn.ele('Name','☎전화걸기');
-      xRow_call_btn.ele('Type','Button');
-      xRow_call_btn.ele('Options','size=2');
+        let xRow_call_btn = xRow_call_row.ele('Widget');
+        xRow_call_btn.ele('WidgetId','CallBtn');
+        xRow_call_btn.ele('Name','☎전화걸기');
+        xRow_call_btn.ele('Type','Button');
+        xRow_call_btn.ele('Options','size=2');
 
-      let xRow_ep_group = xPage_ep_group.ele('Row');
-      xRow_ep_group.ele('Name','장비');
-      let tempEp = retItem[i].endpoint;
+        let xRow_ep_group = xPage_ep_group.ele('Row');
+        xRow_ep_group.ele('Name','장비');
+        let tempEp = retItem[i].endpoint;
 
 
-      //ep_id 로 버튼 생성
-      for(var j=0;j<tempEp.length;j++){
+        //ep_id 로 버튼 생성
+        for(var j=0;j<tempEp.length;j++){
 
-        let ep_id = tempEp[j].ep_id;
-        let ep_name = tempEp[j].ep_name;
-        let xRow_ep = xRow_ep_group.ele('Widget');
+          let ep_id = tempEp[j].ep_id;
+          let ep_name = tempEp[j].ep_name;
+          let xRow_ep = xRow_ep_group.ele('Widget');
 
-        xRow_ep.ele('WidgetId','CON_'+ep_id);
-        xRow_ep.ele('Name',ep_name);
-        xRow_ep.ele('Type','Button');
-        xRow_ep.ele('Options','size=4');
+          xRow_ep.ele('WidgetId','CON_'+ep_id);
+          xRow_ep.ele('Name',ep_name);
+          xRow_ep.ele('Type','Button');
+          xRow_ep.ele('Options','size=4');
 
-        self.conSourceList.push(tempEp[j]);
+          self.conSourceList.push(tempEp[j]);
+
+        }
+
+        let xRow_call_row_b = xPage_ep_group.ele('Row');
+        xRow_call_row_b.ele('Name','');
+
+        let xRow_call_btn_b = xRow_call_row_b.ele('Widget');
+        xRow_call_btn_b.ele('WidgetId','CallBtn');
+        xRow_call_btn_b.ele('Name','☎전화걸기');
+        xRow_call_btn_b.ele('Type','Button');
+        xRow_call_btn_b.ele('Options','size=2');
 
       }
-
-      let xRow_call_row_b = xPage_ep_group.ele('Row');
-      xRow_call_row_b.ele('Name','');
-
-      let xRow_call_btn_b = xRow_call_row_b.ele('Widget');
-      xRow_call_btn_b.ele('WidgetId','CallBtn');
-      xRow_call_btn_b.ele('Name','☎전화걸기');
-      xRow_call_btn_b.ele('Type','Button');
-      xRow_call_btn_b.ele('Options','size=2');
-
     }
 
     return xRoot.end({pretty:true});
@@ -789,29 +360,33 @@ inRoomApi.prototype.initPanel = function(panelId){
     xRoot.ele('Version', '1.5');
 
     // 4.주소록
-    let xPanel_sub4 = xRoot.ele('Panel');
-    xPanel_sub4.ele('PanelId','ContactPanel');
-    xPanel_sub4.ele('Type','Statusbar');
-    xPanel_sub4.ele('Icon','Handset');
-    xPanel_sub4.ele('Order','4');
-    xPanel_sub4.ele('Color','#ffb400');
-    xPanel_sub4.ele('Name',"임원 주소록");
+    if("Y"==self.endpoint.device_officer){
+      let xPanel_sub4 = xRoot.ele('Panel');
+      xPanel_sub4.ele('PanelId','ContactPanel');
+      xPanel_sub4.ele('Type','Statusbar');
+      xPanel_sub4.ele('Icon','Handset');
+      xPanel_sub4.ele('Order','4');
+      xPanel_sub4.ele('Color','#ffb400');
+      xPanel_sub4.ele('Name',"임원 주소록");
 
-    let xPage_sub4 = xPanel_sub4.ele('Page');
-    xPage_sub4.ele('Name','임원 주소록');
-    xPage_sub4.ele('Options');
+      let xPage_sub4 = xPanel_sub4.ele('Page');
+      xPage_sub4.ele('Name','임원 주소록');
+      xPage_sub4.ele('Options');
+    }
 
-    let xPanel_sub5 = xRoot.ele('Panel');
-    xPanel_sub5.ele('PanelId','NormalPanel');
-    xPanel_sub5.ele('Type','Statusbar');
-    xPanel_sub5.ele('Icon','Handset');
-    xPanel_sub5.ele('Order','5');
-    xPanel_sub5.ele('Color','#ff503c');
-    xPanel_sub5.ele('Name',"회의실 주소록");
+    if("Y"==self.endpoint.device_open){
+      let xPanel_sub5 = xRoot.ele('Panel');
+      xPanel_sub5.ele('PanelId','NormalPanel');
+      xPanel_sub5.ele('Type','Statusbar');
+      xPanel_sub5.ele('Icon','Handset');
+      xPanel_sub5.ele('Order','5');
+      xPanel_sub5.ele('Color','#ff503c');
+      xPanel_sub5.ele('Name',"회의실 주소록");
 
-    let xPage_sub5 = xPanel_sub5.ele('Page');
-    xPage_sub5.ele('Name','회의실 주소록');
-    xPage_sub5.ele('Options');
+      let xPage_sub5 = xPanel_sub5.ele('Page');
+      xPage_sub5.ele('Name','회의실 주소록');
+      xPage_sub5.ele('Options');
+    }
 
     // 5.회의목록
     let xPanel = xRoot.ele('Panel');
@@ -847,7 +422,7 @@ inRoomApi.prototype.initPanel = function(panelId){
 
   }
 
-  function createNormalPanel(){                         // 일반 미팅 패널 생성
+  function createNormalPanel(){                         // 코덱 미팅 패널 생성
 
     let epip = self.endpoint.ip;
 
@@ -956,7 +531,6 @@ inRoomApi.prototype.initPanel = function(panelId){
 
   }
 
-
 }
 
 inRoomApi.prototype.initWidget = function(wevent){
@@ -965,136 +539,21 @@ inRoomApi.prototype.initWidget = function(wevent){
   if(wevent.Type == 'clicked'){
     let wVal = wevent.Value;
 
-    if(-1!=wevent.WidgetId.toString().indexOf("TIME_")){
-      //장비 버튼
-      epButton(wevent.WidgetId);
-    }else if(-1!=wevent.WidgetId.toString().indexOf("CON_")){
+    if(-1!=wevent.WidgetId.toString().indexOf("CON_")){
       con_ep_button(wevent.WidgetId);
     }else if(-1!=wevent.WidgetId.toString().indexOf("NORMAL_")){
-      console.log("TTTT");
       normal_ep_button(wevent.WidgetId);
     }else if(-1!=wevent.WidgetId.toString().indexOf("ML_")){
       reconnect_meeting(wevent.WidgetId);
     }else{
       //일반 버튼
       switch(wevent.WidgetId){
-        case "StartMonth_Spinner"   : startMonth_Spinner(wVal);   break;
-        case "StartDay_Spinner"     : startDay_Spinner(wVal);     break;
-        case "StartHour_Spinner"    : startHour_Spinner(wVal);    break;
-        case "StartMinute_Spinner"  : startMinute_Spinner(wVal);  break;
-        case "EndHour_Spinner"      : endHour_Spinner(wVal);      break;
-        case "EndMinute_Spinner"    : endMinute_Spinner(wVal);    break;
-        case "CheckRoom"            : checkRoom();                break;
-        case "ClearRoom"            : clearRoom();                break;
-        case "ReservationRoom"      : reservationRoom();          break;
         case "CallBtn"              : call_btn_event();           break;
         case "CallBtnNoraml"        : call_btn_event_normal();    break;
-
       }
     }
   }
 
-  function startMonth_Spinner(val){ //월 조정
-    if('increment'==val){
-      self.tmStartDate.setMonth(self.tmStartDate.getMonth()+1);
-    }else if('decrement'==val){
-      self.tmStartDate.setMonth(self.tmStartDate.getMonth()-1);
-    }
-    updateTime();
-  }
-
-  function startDay_Spinner(val){   //일 조정
-    if('increment'==val){
-      self.tmStartDate.setDate(self.tmStartDate.getDate()+1);
-    }else if('decrement'==val){
-      self.tmStartDate.setDate(self.tmStartDate.getDate()-1);
-    }
-    updateTime();
-  }
-
-  function startHour_Spinner(val){   //시작시간 조정
-    if('increment'==val){
-      self.tmStartDate.setHours(self.tmStartDate.getHours()+1);
-    }else if('decrement'==val){
-      self.tmStartDate.setHours(self.tmStartDate.getHours()-1);
-    }
-    updateTime();
-  }
-
-  function startMinute_Spinner(val){  //종료분 조정
-    if('increment'==val){
-      self.tmStartDate.setMinutes(self.tmStartDate.getMinutes()+1);
-    }else if('decrement'==val){
-      self.tmStartDate.setMinutes(self.tmStartDate.getMinutes()-1);
-    }
-    updateTime();
-  }
-
-  function endHour_Spinner(val){      //종료시간 조정
-    if('increment'==val){
-      self.tmEndDate.setHours(self.tmEndDate.getHours()+1);
-    }else if('decrement'==val){
-      self.tmEndDate.setHours(self.tmEndDate.getHours()-1);
-    }
-    updateTime();
-  }
-
-  function endMinute_Spinner(val){      //종료분 조정
-    if('increment'==val){
-      self.tmEndDate.setMinutes(self.tmEndDate.getMinutes()+1);
-    }else if('decrement'==val){
-      self.tmEndDate.setMinutes(self.tmEndDate.getMinutes()-1);
-    }
-    updateTime();
-  }
-
-  function updateTime(){                // 시간 반영
-    let sTime = self.tmStartDate;
-    let eTime = self.tmEndDate;
-    let curDay = dateFormat(sTime,'yy년 mm월 dd일');
-    let curSTime = dateFormat(sTime,'HH:MM');
-    let curETime = dateFormat(eTime,'HH:MM');
-    let strTime = curDay+' '+curSTime+' ~ '+curETime;
-
-    self.xapi.command('Userinterface Extensions Widget Setvalue',{WidgetId:'TimeMessage' , Value:strTime});
-  }
-
-  function checkRoom(){   //타임 미팅 해당 시간 가능한 장비 조회
-      self.xapi.command('Userinterface Extensions Widget Setvalue',{WidgetId:'CheckRoom' , Value:'active'});
-
-      // let startTime = self.tmStartDate;
-      // let endTime = self.tmEndDate;
-      // let data = {};
-      // data['startTime'] = startTime;
-      // data['endTime'] = endTime;
-      // let param = JSON.stringify(data);
-      //
-      // let res = request('POST', 'http://192.168.0.9:8000/api/v1/getTimeMeetDevice', {
-      //   'content-type' : 'application/json',
-      //   'charset' : 'UTF-8',
-      //   'body' : param
-      // });
-      //
-      // let strBody = res.getBody('utf8');
-      // let retBody = JSON.parse(strBody);
-      // let retResult = retBody.result;
-      // let retItem = retBody.item;
-      //
-      // for(let i=0;i<retItem.length;i++){
-      //   self.xapi.command('Userinterface Extensions Widget Setvalue',{WidgetId:retItem[i]['ep_id'] , Value:'active'});
-      //   var temp = {}
-      //   temp['ep_id'] = retItem[i]['ep_id'];
-      //   temp['status'] = "active";
-      //   self.tmEPList.push(temp);
-      // }
-
-      //getName 사용하여 SelectedRoomMessage 메시지 변경
-      // for(let i=0;i<self.tmEPList.length;i++){
-      //
-      // }
-      // self.xapi.command('Userinterface Extensions Widget Setvalue',{WidgetId:'SelectedRoomMessage' , Value:''});
-
-  }
 
   function epButton(epId){            //장비 버튼 이벤트
       //getValue 없을 경우 현재 상태값 변수 추가
@@ -1117,34 +576,6 @@ inRoomApi.prototype.initWidget = function(wevent){
         });
         self.tmEPList.push(epId);
       }
-
-  }
-
-  function clearRoom(){           //타임 미팅 초기화
-
-      //시간 초기화
-      let curDate = new Date();
-      self.tmStartDate = curDate;
-      self.tmEndDate = curDate;
-      updateTime();
-
-      //EP 초기화
-
-  }
-
-  function reservationRoom(){     //타임 미팅 예약
-
-      let data = {};
-      data['epList'] = self.tmEPList;
-      data['startTime'] = self.tmStartDate;
-      data['endTime'] = self.tmEndDate;
-      let param = JSON.stringify(data);
-
-      let res = request('POST', 'http://127.0.0.1:8000/api/v1/addTimeMeetReserve', {
-        'content-type' : 'application/json',
-        'charset' : 'UTF-8',
-        'body' : data
-      });
 
   }
 
@@ -1204,7 +635,6 @@ inRoomApi.prototype.initWidget = function(wevent){
     let param = {};
     param['host'] = self.endpoint.ip;
     param['eplist'] = self.conEPList;
-    //param['eplist'] = ["EPI00000009"];
 
     if(param.eplist.length>0){
 
@@ -1438,7 +868,7 @@ inRoomApi.prototype.initWidget = function(wevent){
 
   }
 
-  //---------------------------------------- 재 연결 기능 ----------------------------------------
+  //---------------------------------------- 주소록 목록 재 연결 기능 ----------------------------------------
   function reconnect_meeting(widgetId){
     var meet_id = widgetId.substring(3);
 
@@ -1493,7 +923,7 @@ inRoomApi.prototype.initPrompt = function(ePrompt){
     param['seq'] = seqId;
     jsonstrparam = JSON.stringify(param);
 
-    let res = request('POST', 'http://'+self.tempTMIp+':'+self.tempTMPort+'/api/v1/searchContactMeeting'+'?epip='+epip, {
+    let res = request('POST', 'http://'+self.tempTMIp+':'+self.tempTMPort+'/api/v1/inCallMeeting'+'?epip='+epip, {
       'content-type' : 'application/json',
       'charset' : 'UTF-8',
       'body' : jsonstrparam
@@ -1502,6 +932,7 @@ inRoomApi.prototype.initPrompt = function(ePrompt){
     let strBody = res.getBody('utf8');
     let retBody = JSON.parse(strBody);
 
+    console.log(">>>>>>>>>>>>>>>>>>>>>>",retBody);
     let retCallId = retBody.call_id;
 
     self.xapi.command('Dial',{'Number':retCallId+defaultSettingJson['setting']['callsuffix']}).catch ((err) => {

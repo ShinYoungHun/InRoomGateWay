@@ -25,7 +25,7 @@ function initfn(){
     db:jsonContent['db']['name']
   });
 
-  c.query("SELECT ip, device_id, IFNULL(device_pwd,'') AS device_pwd FROM cms_endpoint WHERE device_module = 'Y' AND delete_yn = 'N'", function(err, rows,callback) {
+  c.query("SELECT ip , device_id , IFNULL(device_pwd,'') AS device_pwd , CASE WHEN device_open IS NULL THEN 'N' WHEN device_open = '' THEN 'N' ELSE device_open END AS device_open, CASE WHEN device_officer IS NULL THEN 'N'  WHEN device_officer = '' THEN 'N' ELSE device_officer END AS device_officer FROM cms_endpoint WHERE device_module = 'Y' AND delete_yn = 'N'", function(err, rows,callback) {
       if (err){
         throw err;
       }
@@ -36,6 +36,8 @@ function initfn(){
           temp['ip'] = rowList[i]['ip'];
           temp['id'] = rowList[i]['device_id'];
           temp['password'] = rowList[i]['device_pwd'];
+          temp['device_open'] = rowList[i]['device_open'];
+          temp['device_officer'] = rowList[i]['device_officer'];
           epList.push(temp);
       }
       console.log(epList);
@@ -69,7 +71,7 @@ router.get('/', function(req, res, next) {
 });
 
 router.post('/restart',function(req,res,next){
-  console.log("TTTTTTTTT");
+  console.log("Restart All");
   res.json(200);
   shelljs.exec('forever restartall');
 
